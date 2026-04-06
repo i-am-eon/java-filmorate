@@ -1,5 +1,7 @@
 package ru.yandex.practicum.filmorate.controller;
 
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -14,36 +16,32 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequestMapping("/users")
+@RequiredArgsConstructor
 public class UserController {
-    private final UserService userService;
 
-    @Autowired
-    public UserController(UserService userService) {
-        this.userService = userService;
-    }
+    private final UserService userService;
 
     @GetMapping
     public Collection<User> findAll() {
+        log.info("GET /users");
         return userService.findAll();
     }
 
     @GetMapping("/{id}")
     public User getById(@PathVariable Long id) {
+        log.info("GET /users/{}", id);
         return userService.getById(id);
     }
 
     @PostMapping
-    public User create(@RequestBody User user) {
-        validateUser(user);
+    public User create(@Valid @RequestBody User user) {
+        log.info("POST /users");
         return userService.create(user);
     }
 
     @PutMapping
-    public User update(@RequestBody User user) {
-        if (user.getId() == null) {
-            throw new ValidationException("Id должен быть указан");
-        }
-        validateUser(user);
+    public User update(@Valid @RequestBody User user) {
+        log.info("PUT /users");
         return userService.update(user);
     }
 
@@ -70,19 +68,5 @@ public class UserController {
     @GetMapping("/{id}/friends/common/{otherId}")
     public List<User> getCommonFriends(@PathVariable Long id, @PathVariable Long otherId) {
         return userService.getCommonFriends(id, otherId);
-    }
-
-    private void validateUser(User user) {
-        if (user.getEmail() == null || user.getEmail().isBlank() || !user.getEmail().contains("@"))
-            throw new ValidationException("Электронная почта не может быть пустой и должна содержать символ @");
-
-        if (user.getLogin() == null || user.getLogin().isBlank() || user.getLogin().contains(" "))
-            throw new ValidationException("Логин не может быть пустым и содержать пробелы");
-
-        if (user.getBirthday() == null || user.getBirthday().isAfter(LocalDate.now()))
-            throw new ValidationException("Дата рождения должна быть указана и не может быть в будущем");
-
-        if (user.getName() == null || user.getName().isBlank())
-            user.setName(user.getLogin());
     }
 }
