@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.db.UserDBStorage;
@@ -21,10 +22,21 @@ class UserDBStorageTest {
     @Autowired
     private UserDBStorage userDBStorage;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     private User testUser;
 
     @BeforeEach
     void setup() {
+
+        jdbcTemplate.execute("DELETE FROM likes");
+        jdbcTemplate.execute("DELETE FROM films_genres");
+        jdbcTemplate.execute("DELETE FROM films");
+        jdbcTemplate.execute("DELETE FROM app_users");
+        jdbcTemplate.execute("ALTER TABLE app_users ALTER COLUMN id RESTART WITH 1");
+        jdbcTemplate.execute("ALTER TABLE films ALTER COLUMN id RESTART WITH 1");
+
         testUser = new User();
         testUser.setEmail("test@example.com");
         testUser.setLogin("testuser");
