@@ -1,35 +1,37 @@
 package ru.yandex.practicum.filmorate;
 
+import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.transaction.annotation.Transactional;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.db.UserDBStorage;
+import ru.yandex.practicum.filmorate.mapper.UserRowMapper;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
-@Transactional
+@JdbcTest
+@AutoConfigureTestDatabase
+@RequiredArgsConstructor(onConstructor_ = @Autowired)
+@Import({UserDBStorage.class, UserRowMapper.class})
 class UserDBStorageTest {
 
-    @Autowired
-    private UserDBStorage userDBStorage;
-
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
+    private final UserDBStorage userDBStorage;
+    private final JdbcTemplate jdbcTemplate;
 
     private User testUser;
 
     @BeforeEach
     void setup() {
-
+        // Очистка таблиц и сброс автоинкрементов
         jdbcTemplate.execute("DELETE FROM likes");
         jdbcTemplate.execute("DELETE FROM films_genres");
         jdbcTemplate.execute("DELETE FROM films");
@@ -37,6 +39,7 @@ class UserDBStorageTest {
         jdbcTemplate.execute("ALTER TABLE app_users ALTER COLUMN id RESTART WITH 1");
         jdbcTemplate.execute("ALTER TABLE films ALTER COLUMN id RESTART WITH 1");
 
+        // Подготовка пользователя
         testUser = new User();
         testUser.setEmail("test@example.com");
         testUser.setLogin("testuser");
@@ -47,46 +50,39 @@ class UserDBStorageTest {
     @Test
     void testCreateUser() {
         User createdUser = userDBStorage.create(testUser);
-
-        assertNotNull(createdUser.getId(), "Id пользователя должен быть присвоен");
-        assertEquals("testuser", createdUser.getLogin());
+        assertThat(createdUser.getId()).isNotNull();
+        assertThat(createdUser.getLogin()).isEqualTo("testuser");
     }
 
     @Test
     void testFindUserById() {
         User createdUser = userDBStorage.create(testUser);
-
         Optional<User> foundUser = userDBStorage.findById(createdUser.getId());
-        assertTrue(foundUser.isPresent(), "Пользователь должен существовать");
-        assertEquals(createdUser.getId(), foundUser.get().getId());
+        assertThat(foundUser).isPresent();
+        assertThat(foundUser.get().getId()).isEqualTo(createdUser.getId());
     }
 
     @Test
     void testUpdateUser() {
         User createdUser = userDBStorage.create(testUser);
-
         createdUser.setName("Updated Name");
         User updatedUser = userDBStorage.update(createdUser);
-
-        assertEquals("Updated Name", updatedUser.getName());
+        assertThat(updatedUser.getName()).isEqualTo("Updated Name");
     }
 
     @Test
     void testGetAllUsers() {
         User createdUser = userDBStorage.create(testUser);
-
         List<User> users = userDBStorage.findAll();
-        assertFalse(users.isEmpty(), "Список пользователей не должен быть пустым");
-        assertTrue(users.stream().anyMatch(u -> u.getId().equals(createdUser.getId())));
+        assertThat(users).isNotEmpty();
+        assertThat(users).anyMatch(u -> u.getId().equals(createdUser.getId()));
     }
 
     @Test
     void testDeleteUser() {
         User createdUser = userDBStorage.create(testUser);
-
         userDBStorage.delete(createdUser.getId());
         Optional<User> deletedUser = userDBStorage.findById(createdUser.getId());
-
-        assertTrue(deletedUser.isEmpty(), "Пользователь должен быть удален");
+        assertThat(deletedUser).isEmpty();
     }
 }

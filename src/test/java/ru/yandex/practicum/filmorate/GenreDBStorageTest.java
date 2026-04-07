@@ -1,11 +1,13 @@
 package ru.yandex.practicum.filmorate;
 
 import lombok.RequiredArgsConstructor;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.JdbcTemplate;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.storage.db.GenreDBStorage;
@@ -20,7 +22,21 @@ import static org.assertj.core.api.Assertions.*;
 @Import(GenreDBStorage.class)
 class GenreDBStorageTest {
 
+    @Autowired
     private final GenreDBStorage genreDBStorage;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @BeforeEach
+    void setup() {
+        // Очистка таблиц
+        jdbcTemplate.execute("DELETE FROM films_genres");
+        jdbcTemplate.execute("DELETE FROM films");
+        jdbcTemplate.execute("DELETE FROM app_users");
+        jdbcTemplate.execute("ALTER TABLE films ALTER COLUMN id RESTART WITH 1");
+        jdbcTemplate.execute("ALTER TABLE app_users ALTER COLUMN id RESTART WITH 1");
+    }
 
     @Test
     void testGetAllGenres() {

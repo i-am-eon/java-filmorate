@@ -49,22 +49,16 @@ class FilmDBStorageTest {
 
     @BeforeEach
     void setup() {
-
-        // ---- Очистка таблиц ----
         jdbcTemplate.execute("DELETE FROM likes");
         jdbcTemplate.execute("DELETE FROM films_genres");
         jdbcTemplate.execute("DELETE FROM films");
         jdbcTemplate.execute("DELETE FROM app_users");
-
-        // сброс автоинкремента id
         jdbcTemplate.execute("ALTER TABLE app_users ALTER COLUMN id RESTART WITH 1");
         jdbcTemplate.execute("ALTER TABLE films ALTER COLUMN id RESTART WITH 1");
 
-        // Создаём MPA
         MpaRating mpa = new MpaRating();
         mpa.setId(1L);
 
-        // Создаём фильм
         testFilm = new Film();
         testFilm.setName("Test Film");
         testFilm.setDescription("Test Description");
@@ -72,7 +66,6 @@ class FilmDBStorageTest {
         testFilm.setDuration(120);
         testFilm.setMpa(mpa);
 
-        // Создаём пользователей
         user1 = new User();
         user1.setEmail("user1@mail.com");
         user1.setLogin("user1");
