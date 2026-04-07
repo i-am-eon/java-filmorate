@@ -56,6 +56,10 @@ class FilmDBStorageTest {
         jdbcTemplate.execute("DELETE FROM films");
         jdbcTemplate.execute("DELETE FROM app_users");
 
+        // сброс автоинкремента id
+        jdbcTemplate.execute("ALTER TABLE app_users ALTER COLUMN id RESTART WITH 1");
+        jdbcTemplate.execute("ALTER TABLE films ALTER COLUMN id RESTART WITH 1");
+
         // Создаём MPA
         MpaRating mpa = new MpaRating();
         mpa.setId(1L);
