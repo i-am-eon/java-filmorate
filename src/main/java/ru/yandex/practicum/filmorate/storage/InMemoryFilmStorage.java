@@ -4,17 +4,28 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.Film;
+
 import java.util.*;
 
 @Slf4j
 @Component
 public class InMemoryFilmStorage implements FilmStorage {
+
     private final Map<Long, Film> films = new HashMap<>();
     private long nextId = 1;
 
     @Override
     public Film create(Film film) {
         film.setId(getNextId());
+
+        if (film.getGenres() == null) {
+            film.setGenres(new HashSet<>());
+        }
+
+        if (film.getMpa() == null) {
+            throw new IllegalArgumentException("MPA рейтинг обязателен");
+        }
+
         films.put(film.getId(), film);
         return film;
     }
@@ -23,6 +34,14 @@ public class InMemoryFilmStorage implements FilmStorage {
     public Film update(Film film) {
         if (!films.containsKey(film.getId())) {
             throw new NotFoundException("Фильм не найден");
+        }
+
+        if (film.getGenres() == null) {
+            film.setGenres(new HashSet<>());
+        }
+
+        if (film.getMpa() == null) {
+            throw new IllegalArgumentException("MPA рейтинг обязателен");
         }
 
         films.put(film.getId(), film);
@@ -34,7 +53,6 @@ public class InMemoryFilmStorage implements FilmStorage {
         if (!films.containsKey(id)) {
             throw new NotFoundException("Фильм не найден");
         }
-
         films.remove(id);
     }
 
@@ -51,21 +69,15 @@ public class InMemoryFilmStorage implements FilmStorage {
     @Override
     public void addLike(Long filmId, Long userId) {
         Film film = films.get(filmId);
-        if (film == null) {
-            throw new NotFoundException("Фильм не найден");
-        }
+        if (film == null) throw new NotFoundException("Фильм не найден");
 
-        if (!film.getLikes().contains(userId)) {
-            film.getLikes().add(userId);
-        }
+        film.getLikes().add(userId);
     }
 
     @Override
     public void removeLike(Long filmId, Long userId) {
         Film film = films.get(filmId);
-        if (film == null) {
-            throw new NotFoundException("Фильм не найден");
-        }
+        if (film == null) throw new NotFoundException("Фильм не найден");
 
         film.getLikes().remove(userId);
     }
@@ -73,29 +85,20 @@ public class InMemoryFilmStorage implements FilmStorage {
     @Override
     public List<Film> getPopularFilms(int count) {
         return films.values().stream()
-                .sorted((f1, f2) -> Integer.compare(
-                        f2.getLikes().size(),
-                        f1.getLikes().size()))
+                .sorted((f1, f2) -> Integer.compare(f2.getLikes().size(), f1.getLikes().size()))
                 .limit(count)
                 .toList();
     }
 
+    // Методы с Long id больше не нужны, можно выбросить UnsupportedOperationException
     @Override
     public List<Long> getFilmGenres(Long filmId) {
-        Film film = films.get(filmId);
-        if (film == null) {
-            throw new NotFoundException("Фильм не найден");
-        }
-        return new ArrayList<>(film.getGenreIds());
+        throw new UnsupportedOperationException("Используйте film.getGenres() вместо genreIds");
     }
 
     @Override
     public void setGenres(Long filmId, Set<Long> genreIds) {
-        Film film = films.get(filmId);
-        if (film == null) {
-            throw new NotFoundException("Фильм не найден");
-        }
-        film.setGenreIds(new HashSet<>(genreIds));
+        throw new UnsupportedOperationException("Используйте film.setGenres() с объектами Genre");
     }
 
     private Long getNextId() {

@@ -18,8 +18,8 @@ birthday DATE
 
 CREATE TABLE IF NOT EXISTS films (
 id BIGINT PRIMARY KEY AUTO_INCREMENT,
-name VARCHAR(255) NOT NULL,
-description VARCHAR(1000),
+name VARCHAR(100) NOT NULL,
+description VARCHAR(200),
 release_date DATE NOT NULL,
 duration INT NOT NULL,
 mpa_id BIGINT NOT NULL,
@@ -49,6 +49,3 @@ PRIMARY KEY (user_id, friend_id),
 FOREIGN KEY (user_id) REFERENCES app_users(id) ON DELETE CASCADE,
 FOREIGN KEY (friend_id) REFERENCES app_users(id)
 );
-
-ALTER TABLE friendships ADD CONSTRAINT chk_no_self_friendship
-CHECK (user_id != friend_id);

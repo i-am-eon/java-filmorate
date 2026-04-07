@@ -10,7 +10,6 @@ import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.mapper.UserRowMapper;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.UserStorage;
-
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.util.List;
@@ -82,12 +81,12 @@ public class UserDBStorage implements UserStorage {
 
     @Override
     public void addFriend(Long userId, Long friendId) {
-        jdbcTemplate.update("INSERT INTO friends(user_id, friend_id) VALUES (?, ?)", userId, friendId);
+        jdbcTemplate.update("INSERT INTO friendships(user_id, friend_id) VALUES (?, ?)", userId, friendId);
     }
 
     @Override
     public void removeFriend(Long userId, Long friendId) {
-        jdbcTemplate.update("DELETE FROM friends WHERE user_id=? AND friend_id=?", userId, friendId);
+        jdbcTemplate.update("DELETE FROM friendships WHERE user_id=? AND friend_id=?", userId, friendId);
     }
 
     @Override
@@ -95,7 +94,7 @@ public class UserDBStorage implements UserStorage {
         String sql = """
             SELECT u.*
             FROM app_users u
-            JOIN friends f ON u.id = f.friend_id
+            JOIN friendships f ON u.id = f.friend_id
             WHERE f.user_id = ?
             """;
 
@@ -107,8 +106,8 @@ public class UserDBStorage implements UserStorage {
         String sql = """
             SELECT u.*
             FROM app_users u
-            JOIN friends f1 ON u.id = f1.friend_id
-            JOIN friends f2 ON u.id = f2.friend_id
+            JOIN friendships f1 ON u.id = f1.friend_id
+            JOIN friendships f2 ON u.id = f2.friend_id
             WHERE f1.user_id = ?
               AND f2.user_id = ?
             """;

@@ -8,29 +8,25 @@ import java.util.Set;
 
 @Data
 public class Film {
-
     private Long id;
 
     @NotBlank(message = "Название не может быть пустым")
-    @Size(max = 255, message = "Максимальная длина названия — 255 символов")
+    @Size(max = 100)
     private String name;
 
-    @Size(max = 1000, message = "Максимальная длина описания — 1000 символов")
+    @Size(max = 200)
     private String description;
 
-    @NotNull(message = "Дата релиза обязательна")
-    @PastOrPresent(message = "Дата релиза не может быть в будущем")
+    @NotNull
+    @PastOrPresent
     private LocalDate releaseDate;
 
-    @NotNull(message = "Длительность обязательна")
-    @Min(value = 1, message = "Минимальная длительность — 1 минута")
-    @Max(value = 1000, message = "Максимальная длительность — 1000 минут")
+    @NotNull
+    @Min(1)
+    @Max(1000)
     private Integer duration;
 
-    @NotNull(message = "MPA рейтинг обязателен")
-    private Long mpaId;
-
-    private Set<Long> genreIds = new HashSet<>();
-
+    private MpaRating mpa;
+    private Set<Genre> genres;
     private Set<Long> likes = new HashSet<>();
 }
