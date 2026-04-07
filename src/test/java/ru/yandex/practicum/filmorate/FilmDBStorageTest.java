@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.JdbcTemplate;
 import ru.yandex.practicum.filmorate.mapper.FilmRowMapper;
 import ru.yandex.practicum.filmorate.mapper.UserRowMapper;
 import ru.yandex.practicum.filmorate.model.Film;
@@ -39,12 +40,22 @@ class FilmDBStorageTest {
     @Autowired
     private UserDBStorage userDBStorage;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     private Film testFilm;
     private User user1;
     private User user2;
 
     @BeforeEach
     void setup() {
+
+        // ---- Очистка таблиц ----
+        jdbcTemplate.execute("DELETE FROM likes");
+        jdbcTemplate.execute("DELETE FROM films_genres");
+        jdbcTemplate.execute("DELETE FROM films");
+        jdbcTemplate.execute("DELETE FROM app_users");
+
         // Создаём MPA
         MpaRating mpa = new MpaRating();
         mpa.setId(1L);
