@@ -47,14 +47,14 @@ public class FilmDBStorage implements FilmStorage {
         film.setId(keyHolder.getKey().longValue());
 
         // Сохраняем жанры, если есть
-        if (film.getGenres() != null) {
-            for (var genre : film.getGenres()) {
-                jdbcTemplate.update(
-                        "INSERT INTO films_genres(film_id, genre_id) VALUES (?, ?)",
-                        film.getId(),
-                        genre.getId()
-                );
-            }
+        if (film.getGenres() != null && !film.getGenres().isEmpty()) {
+            String insertGenresSql = "INSERT INTO films_genres(film_id, genre_id) VALUES (?, ?)";
+
+            jdbcTemplate.batchUpdate(sql, film.getGenres(), film.getGenres().size(),
+                    (ps, genre) -> {
+                        ps.setLong(1, film.getId());
+                        ps.setLong(2, genre.getId());
+                    });
         }
 
         return film;
@@ -83,14 +83,14 @@ public class FilmDBStorage implements FilmStorage {
         // Обновляем жанры: сначала удаляем все, затем вставляем новые
         jdbcTemplate.update("DELETE FROM films_genres WHERE film_id=?", film.getId());
 
-        if (film.getGenres() != null) {
-            for (var genre : film.getGenres()) {
-                jdbcTemplate.update(
-                        "INSERT INTO films_genres(film_id, genre_id) VALUES (?, ?)",
-                        film.getId(),
-                        genre.getId()
-                );
-            }
+        if (film.getGenres() != null && !film.getGenres().isEmpty()) {
+            String insertGenresSql = "INSERT INTO films_genres(film_id, genre_id) VALUES (?, ?)";
+
+            jdbcTemplate.batchUpdate(sql, film.getGenres(), film.getGenres().size(),
+                    (ps, genre) -> {
+                        ps.setLong(1, film.getId());
+                        ps.setLong(2, genre.getId());
+                    });
         }
 
         return film;
@@ -163,12 +163,14 @@ public class FilmDBStorage implements FilmStorage {
     public void setGenres(Long filmId, Set<Long> genreIds) {
         jdbcTemplate.update("DELETE FROM films_genres WHERE film_id=?", filmId);
 
-        for (Long genreId : genreIds) {
-            jdbcTemplate.update(
-                    "INSERT INTO films_genres(film_id, genre_id) VALUES (?, ?)",
-                    filmId,
-                    genreId
-            );
+        if (genreIds != null && !genreIds.isEmpty()) {
+            String sql = "INSERT INTO films_genres(film_id, genre_id) VALUES (?, ?)";
+
+            jdbcTemplate.batchUpdate(sql, genreIds, genreIds.size(),
+                    (ps, genreId) -> {
+                        ps.setLong(1, filmId);
+                        ps.setLong(2, genreId);
+                    });
         }
     }
 }
