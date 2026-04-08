@@ -10,13 +10,12 @@ import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.mapper.FilmRowMapper;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.storage.FilmStorage;
+
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Repository
 @Primary
@@ -28,7 +27,7 @@ public class FilmDBStorage implements FilmStorage {
 
     @Override
     public Film create(Film film) {
-        if (film.getMpa() == null) {
+        if (film.getMpa() == null || film.getMpa().getId() == null) {
             throw new IllegalArgumentException("MPA рейтинг обязателен");
         }
 
@@ -42,29 +41,20 @@ public class FilmDBStorage implements FilmStorage {
             ps.setString(2, film.getDescription());
             ps.setDate(3, Date.valueOf(film.getReleaseDate()));
             ps.setInt(4, film.getDuration());
-            ps.setLong(5, film.getMpa().getId()); // берём id из объекта MpaRating
+            ps.setLong(5, film.getMpa().getId());
             return ps;
         }, keyHolder);
 
         film.setId(keyHolder.getKey().longValue());
 
-        // Сохраняем жанры, если есть
-        if (film.getGenres() != null && !film.getGenres().isEmpty()) {
-            String insertGenresSql = "INSERT INTO films_genres(film_id, genre_id) VALUES (?, ?)";
+        saveGenres(film);
 
-            jdbcTemplate.batchUpdate(sql, film.getGenres(), film.getGenres().size(),
-                    (ps, genre) -> {
-                        ps.setLong(1, film.getId());
-                        ps.setLong(2, genre.getId());
-                    });
-        }
-
-        return film;
+        return getByIdWithGenres(film.getId());
     }
 
     @Override
     public Film update(Film film) {
-        if (film.getMpa() == null) {
+        if (film.getMpa() == null || film.getMpa().getId() == null) {
             throw new IllegalArgumentException("MPA рейтинг обязателен");
         }
 
@@ -82,20 +72,10 @@ public class FilmDBStorage implements FilmStorage {
             throw new NotFoundException("Фильм не найден");
         }
 
-        // Обновляем жанры: сначала удаляем все, затем вставляем новые
         jdbcTemplate.update("DELETE FROM films_genres WHERE film_id=?", film.getId());
+        saveGenres(film);
 
-        if (film.getGenres() != null && !film.getGenres().isEmpty()) {
-            String insertGenresSql = "INSERT INTO films_genres(film_id, genre_id) VALUES (?, ?)";
-
-            jdbcTemplate.batchUpdate(insertGenresSql, film.getGenres(), film.getGenres().size(),
-                    (ps, genre) -> {
-                        ps.setLong(1, film.getId());
-                        ps.setLong(2, genre.getId());
-                    });
-        }
-
-        return film;
+        return getByIdWithGenres(film.getId());
     }
 
     @Override
@@ -109,47 +89,60 @@ public class FilmDBStorage implements FilmStorage {
     @Override
     public Optional<Film> findById(Long id) {
         String sql = """
-        SELECT f.*, m.name AS mpa_name
-        FROM films f
-        JOIN mpa m ON f.mpa_id = m.id
-        WHERE f.id = ?
-    """;
+                SELECT f.*, m.name AS mpa_name
+                FROM films f
+                JOIN mpa m ON f.mpa_id = m.id
+                WHERE f.id = ?
+                """;
 
         return jdbcTemplate.query(sql, filmRowMapper, id)
                 .stream()
-                .findFirst();
+                .findFirst()
+                .map(this::enrichFilm);
     }
 
     @Override
     public List<Film> findAll() {
-        return jdbcTemplate.query("SELECT * FROM films", filmRowMapper);
+        String sql = """
+                SELECT f.*, m.name AS mpa_name
+                FROM films f
+                JOIN mpa m ON f.mpa_id = m.id
+                """;
+
+        return jdbcTemplate.query(sql, filmRowMapper)
+                .stream()
+                .map(this::enrichFilm)
+                .toList();
     }
 
     @Override
     public void addLike(Long filmId, Long userId) {
+        getByIdWithGenres(filmId); // проверка
         jdbcTemplate.update("INSERT INTO likes(film_id, user_id) VALUES (?, ?)", filmId, userId);
     }
 
     @Override
     public void removeLike(Long filmId, Long userId) {
+        getByIdWithGenres(filmId); // проверка
         jdbcTemplate.update("DELETE FROM likes WHERE film_id=? AND user_id=?", filmId, userId);
     }
 
     @Override
     public List<Film> getPopularFilms(int count) {
         String sql = String.format("""
-        SELECT f.*, COALESCE(l.likes_count, 0) AS likes_count
-        FROM films f
-        LEFT JOIN (
-            SELECT film_id, COUNT(user_id) AS likes_count
-            FROM likes
-            GROUP BY film_id
-        ) l ON f.id = l.film_id
-        ORDER BY likes_count DESC
-        FETCH FIRST %d ROWS ONLY
-    """, count);
+                SELECT f.*, m.name AS mpa_name, COUNT(l.user_id) AS likes_count
+                FROM films f
+                JOIN mpa m ON f.mpa_id = m.id
+                LEFT JOIN likes l ON f.id = l.film_id
+                GROUP BY f.id, m.name
+                ORDER BY likes_count DESC
+                LIMIT %d
+                """, count);
 
-        return jdbcTemplate.query(sql, filmRowMapper);
+        return jdbcTemplate.query(sql, filmRowMapper)
+                .stream()
+                .map(this::enrichFilm)
+                .toList();
     }
 
     @Override
@@ -166,23 +159,48 @@ public class FilmDBStorage implements FilmStorage {
         jdbcTemplate.update("DELETE FROM films_genres WHERE film_id=?", filmId);
 
         if (genreIds != null && !genreIds.isEmpty()) {
-
-            // Убираем null'ы
-            Set<Long> validGenreIds = genreIds.stream()
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toSet());
-
-            if (validGenreIds.isEmpty()) {
-                return;
-            }
-
             String sql = "INSERT INTO films_genres(film_id, genre_id) VALUES (?, ?)";
 
-            jdbcTemplate.batchUpdate(sql, validGenreIds, validGenreIds.size(),
+            jdbcTemplate.batchUpdate(sql, genreIds, genreIds.size(),
                     (ps, genreId) -> {
                         ps.setLong(1, filmId);
                         ps.setLong(2, genreId);
                     });
         }
+    }
+
+    private Film getByIdWithGenres(Long id) {
+        return findById(id)
+                .orElseThrow(() -> new NotFoundException("Фильм не найден"));
+    }
+
+    private void saveGenres(Film film) {
+        if (film.getGenres() == null || film.getGenres().isEmpty()) {
+            return;
+        }
+
+        String sql = "INSERT INTO films_genres(film_id, genre_id) VALUES (?, ?)";
+
+        var genres = film.getGenres().stream()
+                .filter(g -> g != null && g.getId() != null)
+                .toList();
+
+        jdbcTemplate.batchUpdate(sql, genres, genres.size(),
+                (ps, genre) -> {
+                    ps.setLong(1, film.getId());
+                    ps.setLong(2, genre.getId());
+                });
+    }
+
+    private Film enrichFilm(Film film) {
+        var genreIds = getFilmGenres(film.getId());
+
+        film.setGenres(
+                genreIds.stream()
+                        .map(id -> new ru.yandex.practicum.filmorate.model.Genre(id, null))
+                        .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new))
+        );
+
+        return film;
     }
 }
