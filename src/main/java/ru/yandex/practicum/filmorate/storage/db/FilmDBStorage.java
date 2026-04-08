@@ -13,8 +13,10 @@ import ru.yandex.practicum.filmorate.storage.FilmStorage;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Repository
 @Primary
@@ -86,7 +88,7 @@ public class FilmDBStorage implements FilmStorage {
         if (film.getGenres() != null && !film.getGenres().isEmpty()) {
             String insertGenresSql = "INSERT INTO films_genres(film_id, genre_id) VALUES (?, ?)";
 
-            jdbcTemplate.batchUpdate(sql, film.getGenres(), film.getGenres().size(),
+            jdbcTemplate.batchUpdate(insertGenresSql, film.getGenres(), film.getGenres().size(),
                     (ps, genre) -> {
                         ps.setLong(1, film.getId());
                         ps.setLong(2, genre.getId());
@@ -164,9 +166,19 @@ public class FilmDBStorage implements FilmStorage {
         jdbcTemplate.update("DELETE FROM films_genres WHERE film_id=?", filmId);
 
         if (genreIds != null && !genreIds.isEmpty()) {
+
+            // Убираем null'ы
+            Set<Long> validGenreIds = genreIds.stream()
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+
+            if (validGenreIds.isEmpty()) {
+                return;
+            }
+
             String sql = "INSERT INTO films_genres(film_id, genre_id) VALUES (?, ?)";
 
-            jdbcTemplate.batchUpdate(sql, genreIds, genreIds.size(),
+            jdbcTemplate.batchUpdate(sql, validGenreIds, validGenreIds.size(),
                     (ps, genreId) -> {
                         ps.setLong(1, filmId);
                         ps.setLong(2, genreId);
